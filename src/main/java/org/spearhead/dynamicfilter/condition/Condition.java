@@ -21,7 +21,7 @@ public interface Condition extends Iterable<Condition> {
 
 	Condition or(Condition condition);
 
-	Condition end();
+	Condition stop();
 
 	void accept(ConditionVisitor visitor);
 
