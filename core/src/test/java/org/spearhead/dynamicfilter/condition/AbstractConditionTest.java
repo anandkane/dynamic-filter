@@ -7,15 +7,15 @@ import java.util.ListIterator;
 
 import static org.junit.Assert.*;
 import static org.spearhead.dynamicfilter.condition.Condition.JoinOperator.*;
-import static org.spearhead.dynamicfilter.condition.Condition.Operator.EQUAL;
+import static org.spearhead.dynamicfilter.condition.Condition.Operator.EQ;
 
 public class AbstractConditionTest {
 
 	@Test
 	public void testSingleCondition() {
-		Condition condition = new TestCondition("field1", EQUAL);
+		Condition condition = new TestCondition("field1", EQ);
 		assertEquals("field1", condition.getFiled());
-		assertEquals(EQUAL, condition.getOperator());
+		assertEquals(EQ, condition.getOperator());
 
 		Condition next = condition.next();
 		assertTrue(next instanceof TerminalCondition);
@@ -53,8 +53,8 @@ public class AbstractConditionTest {
 
 	@Test
 	public void testConditionORing() {
-		TestCondition condition1 = new TestCondition("field1", EQUAL);
-		TestCondition condition2 = new TestCondition("field2", EQUAL);
+		TestCondition condition1 = new TestCondition("field1", EQ);
+		TestCondition condition2 = new TestCondition("field2", EQ);
 
 		Condition or = condition1.or(condition2);
 		assertEquals(condition2, or);
@@ -82,8 +82,8 @@ public class AbstractConditionTest {
 
 	@Test
 	public void testConditionANDing() {
-		TestCondition condition1 = new TestCondition("field1", EQUAL);
-		TestCondition condition2 = new TestCondition("field2", EQUAL);
+		TestCondition condition1 = new TestCondition("field1", EQ);
+		TestCondition condition2 = new TestCondition("field2", EQ);
 
 		Condition and = condition1.and(condition2);
 		assertEquals(condition2, and);
@@ -111,8 +111,8 @@ public class AbstractConditionTest {
 
 	@Test
 	public void testConditionChainEnding() {
-		TestCondition condition1 = new TestCondition("field1", EQUAL);
-		TestCondition condition2 = new TestCondition("field2", EQUAL);
+		TestCondition condition1 = new TestCondition("field1", EQ);
+		TestCondition condition2 = new TestCondition("field2", EQ);
 
 		Condition condition = condition1.or(condition2).stop();
 		assertNotNull(condition);

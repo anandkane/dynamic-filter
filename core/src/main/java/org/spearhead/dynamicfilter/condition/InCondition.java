@@ -1,5 +1,7 @@
 package org.spearhead.dynamicfilter.condition;
 
+import java.util.Collection;
+
 public interface InCondition extends UnaryCondition {
-	Object getValues();
+	Collection<Object> getValues();
 }

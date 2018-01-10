@@ -5,13 +5,20 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.spearhead</groupId>
-	<artifactId>dynamic-filter-parent</artifactId>
-	<packaging>pom</packaging>
+	<artifactId>dynamic-filter-core</artifactId>
 	<version>1.0</version>
-	<modules>
-		<module>core</module>
-		<module>sql</module>
-	</modules>
 
+	<dependencies>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.11</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.1</version>
+		</dependency>
+	</dependencies>
 
 </project>

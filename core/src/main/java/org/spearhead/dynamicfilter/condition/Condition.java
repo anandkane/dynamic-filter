@@ -27,43 +27,34 @@ public interface Condition extends Iterable<Condition> {
 
 	ListIterator<Condition> listIterator();
 
-	public enum Operator {
-		EQUAL("="), NULL("IS NULL");
-
-		private String operator;
-
-		Operator(String operator) {
-			this.operator = operator;
-		}
-
-		public String getOperator() {
-			return operator;
-		}
-	}
-
-	public enum JoinOperator {
-		START("", false, true), AND("AND", true, true), OR("OR", true, true), END("", true, false);
+	enum Operator {
+		EQ("="), NOT_EQ("<>"), GT(">"), GT_EQ(">="), LT("<"), LT_EQ("<="), NULL("IS NULL"), BETWEEN("BETWEEN"),
+		IN("IN"), LIKE("LIKE"), EXISTS("EXISTS"),
+		NOT_NULL("IS NOT NULL"), NOT_BETWEEN("NOT BETWEEN"), NOT_IN("NOT IN"), NOT_LIKE("NOT LIKE"),
+		NOT_EXISTS("NOT EXISTS");
 
 		private String text;
-		private boolean hasPrevious;
-		private boolean hasNext;
 
-		JoinOperator(String text, boolean hasPrevious, boolean hasNext) {
+		Operator(String text) {
 			this.text = text;
-			this.hasPrevious = hasPrevious;
-			this.hasNext = hasNext;
 		}
 
 		public String getText() {
 			return text;
 		}
+	}
 
-		public boolean hasNext() {
-			return hasNext;
+	enum JoinOperator {
+		START(""), AND("AND"), OR("OR"), END("");
+
+		private String text;
+
+		JoinOperator(String text) {
+			this.text = text;
 		}
 
-		public boolean hasPrevious() {
-			return hasPrevious;
+		public String getText() {
+			return text;
 		}
 	}
 }
