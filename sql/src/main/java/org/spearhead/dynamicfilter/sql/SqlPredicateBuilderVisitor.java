@@ -1,5 +1,6 @@
 package org.spearhead.dynamicfilter.sql;
 
+import org.apache.commons.lang3.StringUtils;
 import org.spearhead.dynamicfilter.condition.*;
 import org.spearhead.dynamicfilter.condition.visitor.ConditionVisitor;
 
@@ -8,12 +9,17 @@ import java.util.Iterator;
 public class SqlPredicateBuilderVisitor implements ConditionVisitor {
 	private StringBuilder builder = new StringBuilder();
 
-	public SqlPredicateBuilderVisitor(StringBuilder builder) {
-		this.builder = builder;
+	public String getPredicate() {
+		int index;
+		while ((index = builder.indexOf("( ")) != -1) {
+			builder.deleteCharAt(index + 1);
+		}
+
+		return builder.toString();
 	}
 
 	public void visitUnary(UnaryCondition condition) {
-		appendField(condition).append(condition.getOperator().getText()).append(" ");
+		appendField(condition).append(condition.getOperator().getText());
 		appendJoin(condition);
 	}
 
@@ -49,12 +55,13 @@ public class SqlPredicateBuilderVisitor implements ConditionVisitor {
 		appendJoin(condition);
 	}
 
-	public void visitNestedOpen(NestingStart condition) {
+	public void visitNestedOpen(NestedCondition condition) {
 		builder.append(" (");
 	}
 
-	public void visitNestedClose(NestingEnd condition) {
-		builder.append(") ");
+	public void visitNestedClose(NestedCondition condition) {
+		builder.append(")");
+		appendJoin(condition);
 	}
 
 	private StringBuilder appendField(Condition condition) {
@@ -62,6 +69,9 @@ public class SqlPredicateBuilderVisitor implements ConditionVisitor {
 	}
 
 	private void appendJoin(Condition condition) {
-		builder.append(condition.forwardJoin().getText()).append(" ");
+		String text = condition.forwardJoin().getText();
+		if (StringUtils.isNotEmpty(text)) {
+			builder.append(" ").append(text);
+		}
 	}
 }

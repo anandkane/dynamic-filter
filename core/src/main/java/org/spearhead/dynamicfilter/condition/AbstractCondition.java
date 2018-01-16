@@ -2,11 +2,14 @@ package org.spearhead.dynamicfilter.condition;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.spearhead.dynamicfilter.condition.visitor.ConditionVisitor;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.ListIterator;
 
 abstract class AbstractCondition implements Condition {
+	private ConditionContainer container;
 	protected String field;
 	protected Operator operator;
 	protected Condition next = new TerminalCondition(null, this);
@@ -17,6 +20,7 @@ abstract class AbstractCondition implements Condition {
 	AbstractCondition(String field, Operator operator) {
 		this.field = field;
 		this.operator = operator;
+		this.container = new InvisibleContainer(this);
 	}
 
 	@Override
@@ -35,8 +39,8 @@ abstract class AbstractCondition implements Condition {
 
 	@Override
 	public String toString() {
-		return new StringBuilder().append("AbstractCondition{").append("field='").append(field).append('\'')
-				.append(", operator=").append(operator).append(", forwardJoin=").append(forwardJoin)
+		return new StringBuilder().append(this.getClass().getSimpleName()).append("{").append("field='").append(field)
+				.append('\'').append(", operator=").append(operator).append(", forwardJoin=").append(forwardJoin)
 				.append(", backwardJoin=").append(backwardJoin).append('}').toString();
 	}
 
@@ -56,6 +60,14 @@ abstract class AbstractCondition implements Condition {
 		return next;
 	}
 
+	public ConditionContainer getContainer() {
+		return container;
+	}
+
+	public void setContainer(ConditionContainer container) {
+		this.container = container;
+	}
+
 	public Condition previous() {
 		return previous;
 	}
@@ -68,21 +80,35 @@ abstract class AbstractCondition implements Condition {
 		return join(condition, JoinOperator.OR);
 	}
 
-	public Condition stop() {
-		Condition condition = this;
-		ListIterator<Condition> iterator = condition.listIterator();
-		while (iterator.hasPrevious()) {
-			condition = iterator.previous();
+	public Condition nestOr(Condition condition) {
+		return nest(condition, JoinOperator.OR);
+	}
+
+	public Condition nestAnd(Condition condition) {
+		return nest(condition, JoinOperator.AND);
+	}
+
+	public Condition first() {
+		return this.container.getStart();
+	}
+
+	public void acceptRecursive(ConditionVisitor visitor) {
+		Iterator<Condition> iterator = this.iterator();
+		while (iterator.hasNext()) {
+			iterator.next().accept(visitor);
 		}
-		return condition;
+	}
+
+	public Iterator<Condition> shallowIterator() {
+		return new ShallowIterator();
 	}
 
 	public Iterator<Condition> iterator() {
-		return new ConditionIterator(this);
+		return new ConditionIterator();
 	}
 
 	public ListIterator<Condition> listIterator() {
-		return new ConditionListIterator(this);
+		return new ConditionListIterator();
 	}
 
 	public Operator getOperator() {
@@ -92,20 +118,46 @@ abstract class AbstractCondition implements Condition {
 	private Condition join(Condition condition, JoinOperator join) {
 		forwardJoin = join;
 		this.next = condition;
-		AbstractCondition condition1 = (AbstractCondition) condition;
-		condition1.backwardJoin = join;
-		condition1.previous = this;
+
+		AbstractCondition casted = (AbstractCondition) condition;
+		casted.backwardJoin = join;
+		casted.previous = this;
+
+		// Container of linked condition should be same as that of the linking condition
+		casted.container = this.container;
 
 		return condition;
 	}
 
+	private Condition nest(Condition condition, JoinOperator joinOperator) {
+		NestedCondition container = new NestedCondition(condition);
+		// Link the nested condition with 'this' condition
+		join(container, joinOperator);
+		return container;
+	}
+
+	private class ShallowIterator implements Iterator<Condition> {
+		private Condition next = AbstractCondition.this;
+
+		public boolean hasNext() {
+			return next.next() != null;
+		}
+
+		public Condition next() {
+			Condition retained = next;
+			next = next.next();
+			return retained;
+		}
+
+		public void remove() {
+
+		}
+	}
+
 	private class ConditionIterator implements Iterator<Condition> {
 
-		private Condition condition;
-
-		private ConditionIterator(Condition condition) {
-			this.condition = condition;
-		}
+		private HashSet<Integer> iteratedLevels = new HashSet<Integer>();
+		private Condition condition = AbstractCondition.this;
 
 		public boolean hasNext() {
 			return condition.next() != null;
@@ -113,7 +165,29 @@ abstract class AbstractCondition implements Condition {
 
 		public Condition next() {
 			Condition ret = condition;
-			condition = condition.next();
+			if (condition instanceof NestedCondition) {
+				if (iteratedLevels.remove(condition.hashCode())) {
+					// This nested condition has been iterated over already
+					condition = condition.next();
+					if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
+						// If this is the last in the chain of 'nested' conditions, next after this is the containing
+						// nested condition. And the next thereafter is the next of nested condition.
+						condition = (Condition) ret.getContainer();
+					}
+				} else {
+					// If this is nested condition and has not been iterated over yet, the one to be returned after this
+					// is the first of the nested chain.
+					iteratedLevels.add(condition.hashCode());
+					this.condition = ((NestedCondition) condition).getStart();
+				}
+			} else {
+				condition = condition.next();
+				if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
+					// If this is the last in the chain of 'nested' conditions, next after this is the containing
+					// nested condition. And the next thereafter is the next of nested condition.
+					condition = (Condition) ret.getContainer();
+				}
+			}
 			return ret;
 		}
 
@@ -124,11 +198,7 @@ abstract class AbstractCondition implements Condition {
 
 	private class ConditionListIterator implements ListIterator<Condition> {
 
-		private Condition condition;
-
-		private ConditionListIterator(Condition condition) {
-			this.condition = condition;
-		}
+		private Condition condition = AbstractCondition.this;
 
 		public boolean hasNext() {
 			return condition.next() != null;
@@ -136,7 +206,16 @@ abstract class AbstractCondition implements Condition {
 
 		public Condition next() {
 			Condition ret = condition;
-			condition = condition.next();
+			if (condition instanceof NestedCondition) {
+				// If this is nested condition, the one to be returned next is the first condition within itself.
+				condition = ((NestedCondition) condition).getStart();
+			} else {
+				condition = condition.next();
+				if (!hasNext() && ((AbstractCondition) condition).container instanceof NestedCondition) {
+					// If this is the last in the chain if 'nested' conditions, next is the containing nested condition.
+					condition = ((NestedCondition) ((AbstractCondition) condition).container);
+				}
+			}
 			return ret;
 		}
 
@@ -168,6 +247,24 @@ abstract class AbstractCondition implements Condition {
 
 		public void add(Condition condition) {
 			throw new UnsupportedOperationException("Operation not supported in condition chain");
+		}
+	}
+
+	private class InvisibleContainer implements ConditionContainer {
+		private Condition start;
+
+		private InvisibleContainer(Condition start) {
+			this.start = start;
+		}
+
+		public Condition start(Condition condition) {
+			this.start = condition;
+			((AbstractCondition) this.start).container = this;
+			return this.start;
+		}
+
+		public Condition getStart() {
+			return start;
 		}
 	}
 }

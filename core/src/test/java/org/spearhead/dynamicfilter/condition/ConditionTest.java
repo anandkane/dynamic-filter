@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 import static org.spearhead.dynamicfilter.condition.Condition.JoinOperator.*;
 import static org.spearhead.dynamicfilter.condition.Condition.Operator.EQ;
 
-public class AbstractConditionTest {
+public class ConditionTest {
 
 	@Test
 	public void testSingleCondition() {
@@ -114,11 +114,11 @@ public class AbstractConditionTest {
 		TestCondition condition1 = new TestCondition("field1", EQ);
 		TestCondition condition2 = new TestCondition("field2", EQ);
 
-		Condition condition = condition1.or(condition2).stop();
+		Condition condition = condition1.or(condition2).first();
 		assertNotNull(condition);
 		assertEquals(condition1, condition);
 
-		condition = condition1.and(condition2).stop();
+		condition = condition1.and(condition2).first();
 		assertNotNull(condition);
 		assertEquals(condition1, condition);
 	}

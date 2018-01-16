@@ -13,8 +13,8 @@ public interface ConditionVisitor {
 
 	void visitSubQuery(SubQueryCondition condition);
 
-	void visitNestedOpen(NestingStart condition);
+	void visitNestedOpen(NestedCondition condition);
 
-	void visitNestedClose(NestingEnd condition);
+	void visitNestedClose(NestedCondition condition);
 
 }

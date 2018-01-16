@@ -40,4 +40,8 @@ public class ConditionUtil {
 	public static UnaryCondition notNull(String field) {
 		return new UnaryConditionImpl(field, Condition.Operator.NOT_NULL);
 	}
+
+	public static NestedCondition nest(Condition condition) {
+		return new NestedCondition(condition);
+	}
 }
