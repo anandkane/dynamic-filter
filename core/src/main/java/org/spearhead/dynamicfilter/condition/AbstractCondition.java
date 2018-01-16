@@ -199,6 +199,7 @@ abstract class AbstractCondition implements Condition {
 	private class ConditionListIterator implements ListIterator<Condition> {
 
 		private Condition condition = AbstractCondition.this;
+		private HashSet<Integer> iteratedLevels = new HashSet<Integer>();
 
 		public boolean hasNext() {
 			return condition.next() != null;
@@ -207,13 +208,26 @@ abstract class AbstractCondition implements Condition {
 		public Condition next() {
 			Condition ret = condition;
 			if (condition instanceof NestedCondition) {
-				// If this is nested condition, the one to be returned next is the first condition within itself.
-				condition = ((NestedCondition) condition).getStart();
+				if (iteratedLevels.remove(condition.hashCode())) {
+					// This nested condition has been iterated over already
+					condition = condition.next();
+					if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
+						// If this is the last in the chain of 'nested' conditions, next after this is the containing
+						// nested condition. And the next thereafter is the next of nested condition.
+						condition = (Condition) ret.getContainer();
+					}
+				} else {
+					// If this is nested condition and has not been iterated over yet, the one to be returned after this
+					// is the first of the nested chain.
+					iteratedLevels.add(condition.hashCode());
+					this.condition = ((NestedCondition) condition).getStart();
+				}
 			} else {
 				condition = condition.next();
-				if (!hasNext() && ((AbstractCondition) condition).container instanceof NestedCondition) {
-					// If this is the last in the chain if 'nested' conditions, next is the containing nested condition.
-					condition = ((NestedCondition) ((AbstractCondition) condition).container);
+				if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
+					// If this is the last in the chain of 'nested' conditions, next after this is the containing
+					// nested condition. And the next thereafter is the next of nested condition.
+					condition = (Condition) ret.getContainer();
 				}
 			}
 			return ret;
