@@ -18,6 +18,12 @@ public interface Condition extends Iterable<Condition> {
 
 	Condition next();
 
+	boolean hasNext();
+
+	boolean hasPrevious();
+
+	boolean isNested();
+
 	ConditionContainer getContainer();
 
 	void setContainer(ConditionContainer container);

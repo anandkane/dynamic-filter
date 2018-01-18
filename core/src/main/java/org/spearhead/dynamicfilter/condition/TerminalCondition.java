@@ -25,4 +25,14 @@ public class TerminalCondition extends ConditionAdapter {
 		return next;
 	}
 
+	@Override
+	public boolean hasNext() {
+		return false;
+	}
+
+	@Override
+	public boolean hasPrevious() {
+		return false;
+	}
+
 }

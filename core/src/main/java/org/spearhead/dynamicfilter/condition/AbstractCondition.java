@@ -4,9 +4,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.spearhead.dynamicfilter.condition.visitor.ConditionVisitor;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.ListIterator;
+import java.util.*;
 
 abstract class AbstractCondition implements Condition {
 	private ConditionContainer container;
@@ -58,6 +56,21 @@ abstract class AbstractCondition implements Condition {
 
 	public Condition next() {
 		return next;
+	}
+
+	@Override
+	public boolean hasNext() {
+		return JoinOperator.END != forwardJoin;
+	}
+
+	@Override
+	public boolean hasPrevious() {
+		return JoinOperator.START != backwardJoin;
+	}
+
+	@Override
+	public boolean isNested() {
+		return container.isNested();
 	}
 
 	public ConditionContainer getContainer() {
@@ -116,22 +129,26 @@ abstract class AbstractCondition implements Condition {
 	}
 
 	private Condition join(Condition condition, JoinOperator join) {
-		forwardJoin = join;
-		this.next = condition;
 
-		AbstractCondition casted = (AbstractCondition) condition;
+		forwardJoin = join;
+		// If condition is chain of conditions first of the chain should be joined with 'this'.
+		Condition first = condition.first();
+		this.next = first;
+
+		// Container of linked current should be same as that of the linking current
+		condition.setContainer(this.getContainer());
+
+		AbstractCondition casted = (AbstractCondition) first;
 		casted.backwardJoin = join;
 		casted.previous = this;
 
-		// Container of linked condition should be same as that of the linking condition
-		casted.container = this.container;
 
 		return condition;
 	}
 
 	private Condition nest(Condition condition, JoinOperator joinOperator) {
 		NestedCondition container = new NestedCondition(condition);
-		// Link the nested condition with 'this' condition
+		// Link the nested current with 'this' current
 		join(container, joinOperator);
 		return container;
 	}
@@ -155,82 +172,72 @@ abstract class AbstractCondition implements Condition {
 	}
 
 	private class ConditionIterator implements Iterator<Condition> {
+		private Condition current = AbstractCondition.this;
+		private Condition next;
+		private Deque<ConditionContainer> containerStack = new ArrayDeque<ConditionContainer>();
+		private boolean isContainer;
+		private boolean containerOpened;
 
-		private HashSet<Integer> iteratedLevels = new HashSet<Integer>();
-		private Condition condition = AbstractCondition.this;
+		public ConditionIterator() {
+			containerStack.push(current.getContainer());
+		}
 
 		public boolean hasNext() {
-			return condition.next() != null;
+			isContainer = current instanceof ConditionContainer;
+			containerOpened = false;
+			if (isContainer) {
+				containerOpened = !containerStack.peek().equals(current);
+				if (containerOpened) {
+					containerStack.push(((ConditionContainer) current));
+				} else {
+					// Redundant assignment, but without side effects.
+					current = containerStack.pop();
+				}
+			}
+
+			return !containerStack.isEmpty();
 		}
 
 		public Condition next() {
-			Condition ret = condition;
-			if (condition instanceof NestedCondition) {
-				if (iteratedLevels.remove(condition.hashCode())) {
-					// This nested condition has been iterated over already
-					condition = condition.next();
-					if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
-						// If this is the last in the chain of 'nested' conditions, next after this is the containing
-						// nested condition. And the next thereafter is the next of nested condition.
-						condition = (Condition) ret.getContainer();
-					}
-				} else {
-					// If this is nested condition and has not been iterated over yet, the one to be returned after this
-					// is the first of the nested chain.
-					iteratedLevels.add(condition.hashCode());
-					this.condition = ((NestedCondition) condition).getStart();
-				}
-			} else {
-				condition = condition.next();
-				if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
-					// If this is the last in the chain of 'nested' conditions, next after this is the containing
-					// nested condition. And the next thereafter is the next of nested condition.
-					condition = (Condition) ret.getContainer();
-				}
-			}
+			Condition ret = current;
+			current = containerOpened ? ((ConditionContainer) current).getStart() :
+					current.hasNext() ? current.next() : current.getContainer();
+
 			return ret;
 		}
 
 		public void remove() {
-			throw new UnsupportedOperationException("Cannot remove condition from condition chain");
+			throw new UnsupportedOperationException("Cannot remove current from current chain");
 		}
 	}
 
 	private class ConditionListIterator implements ListIterator<Condition> {
 
+		private Deque<ConditionContainer> containerStack = new ArrayDeque<ConditionContainer>();
 		private Condition condition = AbstractCondition.this;
 		private HashSet<Integer> iteratedLevels = new HashSet<Integer>();
 
+		public ConditionListIterator() {
+			containerStack.push(condition.getContainer());
+		}
+
 		public boolean hasNext() {
-			return condition.next() != null;
+			return !containerStack.isEmpty();
 		}
 
 		public Condition next() {
-			Condition ret = condition;
-			if (condition instanceof NestedCondition) {
-				if (iteratedLevels.remove(condition.hashCode())) {
-					// This nested condition has been iterated over already
-					condition = condition.next();
-					if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
-						// If this is the last in the chain of 'nested' conditions, next after this is the containing
-						// nested condition. And the next thereafter is the next of nested condition.
-						condition = (Condition) ret.getContainer();
-					}
-				} else {
-					// If this is nested condition and has not been iterated over yet, the one to be returned after this
-					// is the first of the nested chain.
-					iteratedLevels.add(condition.hashCode());
-					this.condition = ((NestedCondition) condition).getStart();
-				}
-			} else {
-				condition = condition.next();
-				if (!hasNext() && ret.getContainer() instanceof NestedCondition) {
-					// If this is the last in the chain of 'nested' conditions, next after this is the containing
-					// nested condition. And the next thereafter is the next of nested condition.
-					condition = (Condition) ret.getContainer();
-				}
+			Condition retained = this.condition;
+			condition = condition.next();
+			if (!condition.hasNext()) {
+				retained = containerStack.pop();
+				return retained;
 			}
-			return ret;
+
+			if (condition instanceof NestedCondition) {
+				containerStack.push(((NestedCondition) condition));
+				condition = ((NestedCondition) condition).getStart();
+			}
+			return retained;
 		}
 
 		public boolean hasPrevious() {
@@ -244,27 +251,27 @@ abstract class AbstractCondition implements Condition {
 		}
 
 		public int nextIndex() {
-			throw new UnsupportedOperationException("Operation not supported in condition chain");
+			throw new UnsupportedOperationException("Operation not supported in current chain");
 		}
 
 		public int previousIndex() {
-			throw new UnsupportedOperationException("Operation not supported in condition chain");
+			throw new UnsupportedOperationException("Operation not supported in current chain");
 		}
 
 		public void remove() {
-			throw new UnsupportedOperationException("Operation not supported in condition chain");
+			throw new UnsupportedOperationException("Operation not supported in current chain");
 		}
 
 		public void set(Condition condition) {
-			throw new UnsupportedOperationException("Operation not supported in condition chain");
+			throw new UnsupportedOperationException("Operation not supported in current chain");
 		}
 
 		public void add(Condition condition) {
-			throw new UnsupportedOperationException("Operation not supported in condition chain");
+			throw new UnsupportedOperationException("Operation not supported in current chain");
 		}
 	}
 
-	private class InvisibleContainer implements ConditionContainer {
+	private class InvisibleContainer extends ConditionAdapter implements ConditionContainer {
 		private Condition start;
 
 		private InvisibleContainer(Condition start) {

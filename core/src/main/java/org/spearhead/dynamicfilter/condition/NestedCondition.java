@@ -19,6 +19,11 @@ public class NestedCondition extends AbstractCondition implements ConditionConta
 				.append(visited).append(", identity=").append(identity).append('}').toString();
 	}
 
+	@Override
+	public boolean isNested() {
+		return true;
+	}
+
 	public NestedCondition(Condition condition) {
 		super("", Operator.NONE);
 		start = condition = condition.first();

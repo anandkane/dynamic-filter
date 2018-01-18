@@ -13,7 +13,7 @@ public class ConditionTest {
 
 	@Test
 	public void testSingleCondition() {
-		Condition condition = new TestCondition("field1", EQ);
+		Condition condition = new MockCondition("field1", EQ);
 		assertEquals("field1", condition.getFiled());
 		assertEquals(EQ, condition.getOperator());
 
@@ -53,8 +53,8 @@ public class ConditionTest {
 
 	@Test
 	public void testConditionORing() {
-		TestCondition condition1 = new TestCondition("field1", EQ);
-		TestCondition condition2 = new TestCondition("field2", EQ);
+		MockCondition condition1 = new MockCondition("field1", EQ);
+		MockCondition condition2 = new MockCondition("field2", EQ);
 
 		Condition or = condition1.or(condition2);
 		assertEquals(condition2, or);
@@ -82,8 +82,8 @@ public class ConditionTest {
 
 	@Test
 	public void testConditionANDing() {
-		TestCondition condition1 = new TestCondition("field1", EQ);
-		TestCondition condition2 = new TestCondition("field2", EQ);
+		MockCondition condition1 = new MockCondition("field1", EQ);
+		MockCondition condition2 = new MockCondition("field2", EQ);
 
 		Condition and = condition1.and(condition2);
 		assertEquals(condition2, and);
@@ -111,8 +111,8 @@ public class ConditionTest {
 
 	@Test
 	public void testConditionChainEnding() {
-		TestCondition condition1 = new TestCondition("field1", EQ);
-		TestCondition condition2 = new TestCondition("field2", EQ);
+		MockCondition condition1 = new MockCondition("field1", EQ);
+		MockCondition condition2 = new MockCondition("field2", EQ);
 
 		Condition condition = condition1.or(condition2).first();
 		assertNotNull(condition);

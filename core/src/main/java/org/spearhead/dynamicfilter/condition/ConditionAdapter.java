@@ -30,6 +30,21 @@ public class ConditionAdapter implements Condition {
 		return null;
 	}
 
+	@Override
+	public boolean hasNext() {
+		return false;
+	}
+
+	@Override
+	public boolean hasPrevious() {
+		return false;
+	}
+
+	@Override
+	public boolean isNested() {
+		return false;
+	}
+
 	public ConditionContainer getContainer() {
 		return null;
 	}
